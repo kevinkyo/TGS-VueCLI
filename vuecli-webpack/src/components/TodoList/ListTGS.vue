@@ -39,17 +39,12 @@
                 </v-card-title>
                 
                 <v-card-text>
-                    <v-container>
-                        <v-text-field
-                            v-model="formTodo.task"
-                            label="Task"
-                            required
-                        ></v-text-field>
-                        <v-textarea
-                        v-model="formTodo.note" label="Note" required>
-                        </v-textarea>
-                    </v-container>
-                </v-card-text>
+					<v-container>
+						<v-text-field v-model="formTodo.task" label="Task" required></v-text-field>
+						<v-select v-model="formTodo.priority" :items="['Penting', 'Biasa', 'Tidak penting']" label="Priority" required></v-select>
+						<v-textarea v-model="formTodo.note" label="Note" required></v-textarea>
+					</v-container>
+				</v-card-text>
                 <v-card-actions>
                     <v-spacer></v-spacer>
                     <v-btn color="blue darken-1" text @click="cancel">Cancel</v-btn>
@@ -57,6 +52,36 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <v-dialog v-model="dialogDeleted" persistent max-width="350px">
+			<v-card>
+				<v-card-title>
+					<span class="headline font-weight-bold">Mau hapus?</span>
+				</v-card-title>
+
+				<v-card-actions>
+					<v-spacer></v-spacer>
+					<v-btn color="red darken-1" text @click="confirmDelete">Ya</v-btn>
+				</v-card-actions>
+			</v-card>
+		</v-dialog>
+
+		<v-dialog v-model="dialogFinished" persistent max-width="800px">
+			<v-card>
+				<v-card-title>
+					<span class="headline font-weight-bold">Finished To do</span>
+				</v-card-title>
+				<v-card-text>
+					<v-container>
+						<v-data-table :headers="finished" :items="finishedTodos">
+							<template v-slot:[`item.priority`]="{ item }">
+								<v-chip outlined label :color="getColor(item.priority)" dark>{{ item.priority }}</v-chip>
+							</template>
+						</v-data-table>
+					</v-container>
+				</v-card-text>
+			</v-card>
+		</v-dialog>
     </v-main>
 </template>
 <script>
@@ -67,7 +92,6 @@ export default {
             search:null,
             dialog:false,
             tempTodo:null,
-            filters:"All Priority",
             selected: [],
             headers: [
                 {
@@ -79,7 +103,18 @@ export default {
                 { text: "Priority", value:"priority"},
                 { text: "Note", value:"note"},
                 { text: "Actions", value:"actions"},
+                { text: "", value: "checkbox" },
             ],
+            finished: [
+				{
+					text: "Task",
+					align: "start",
+					sortable: true,
+					value: "task",
+				},
+				{ text: "Priority", value: "priority" },
+				{ text: "Note", value: "note" },
+			],
             todos: [
                 {
                     task: "bernafas",
@@ -92,45 +127,48 @@ export default {
                     note: "bersama teman teman"
                 },
             ],
-            finishedTodos: [],
-			formTodo: {
-				task: null,
-				priority: null,
-				note: null,
-			},
+            finishedTodos: [
+
+            ],
+            formTodo:  {
+                task: null,
+                priority: null,
+                note: null,
+            },
         };
     },
     methods: {
         save(){
-            let index =  this.findIndexTodos(this.formTodo);
-            if(index < 0){ // alias ga ketemu -1
-                this.todos.push(this.formTodo);
+            if(index > -1){ // alias ga ketemu -1
+                this.todos.push(this.index, 1, this.formTodo);
             }else {
-                this.todos[index] = this.formTodo;
-            }
-            this.resetForm();
+                this.todos.push(this.form);
+                this.resetForm;
+            this.index = -1;
             this.dialog = false;
+            }
         },
         cancel(){
-            let index =  this.findIndexTodos(this.formTodo);
-            if(index < 0){ // alias ga ketemu -1
-                this.todos.push(this.tempTodo);
-            }else {
-                this.todos[index] = this.tempTodo;
-            }
-            console.log(this.tempTodo);
             this.resetForm();
             this.dialog = false;
+            this.index = -1;
         },
         resetForm(){
             this.formTodo = {
                 task: null,
                 priority: null,
                 note: null,
+                selected: false,
             };
         },
         editItem(item){
-            this.formTodo = item;
+            this.index = this.todos.findIndex(item);
+            this.formTodo = {
+                task : item.task,
+                priority : item.priority,
+                selected : item.selected,
+                note : item.note,
+            }
             this.dialog = true;
         },
         deleteItem(item){
@@ -140,30 +178,29 @@ export default {
                 this.todos.splice(index,1);
             }
         },
+        cancelDelete(){
+            this.dialogDeleted = false;
+            this.index = -1;
+        },
+        confirmDelete(){
+            this.finishedTodos.push(this.todos[this.index]);
+            this.dialogDeleted = false;
+            this.index = -1;
+        },
+        confirmDeleteMultiple() {
+            this.finishedTodos.push(this.todos.filter((todo) => todo.selected));
+            this.dialogDeleted = false;
+            this.index = -1;
+        },
         findIndexTodos(item){
             return this.todos.findIndex(obj => obj.task === item.task);
         },
-        getColor(priority) {
+         getColor(priority) {
 			if (priority === "Penting") return "red";
 			else if (priority === "Biasa") return "blue";
 			else return "green";
 		},
         
     },
-    computed: {
-        filterPriority(){
-            let finds = this.filters;
-            if(finds == "All Priority"){
-                return this.todos;
-            }else {
-                var fil = this.todos.filter(function(x){
-                    return x.priority == finds;
-                })
-                return fil;
-            }
-            
-        },
-    }
-    
 };
 </script>
